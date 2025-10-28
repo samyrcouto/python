@@ -11,6 +11,9 @@ Consumir ou desenvolver uma API externa pública.
 Integrar com o front-end (dados do site e do Python precisam refletir um no outro).
 Gravar vídeo (até 7 min) mostrando o sistema funcionando integrado.
 
+
+
+
 # Corrigir
 
 NOTA:
