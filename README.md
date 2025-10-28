@@ -29,4 +29,3 @@ Código bem organizado e bem estruturado.
 
 Vídeo:
 [25 pontos] Vídeo explicativo - senti falta de uma explicação da estrutura do código.
-
