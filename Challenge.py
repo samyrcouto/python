@@ -1,8 +1,10 @@
 import oracledb;
+import requests;
+import json;
 
 # Pega conexao
 def get_conexao():
-    
+   
     try:
         conn = oracledb.connect(
             user = "RM565194",
@@ -11,49 +13,49 @@ def get_conexao():
             port = "1521",
             service_name = "orcl"
         )
-
+ 
     except Exception as e:
-
+ 
         print(f'Erro ao tentar se conectar: {e}')
     return conn
-
+ 
 # Cria tabela
 def criar_tabelas(conn):
     cursor = conn.cursor()
-    
+   
     if not conn:
-
+ 
         return
-    
+   
     cursor.execute("""
     SELECT COUNT(*) FROM user_tables WHERE table_name = 'PACIENTES'
     """)
     paciente_existe = cursor.fetchone()[0]
-
+ 
     cursor.execute("""
     SELECT COUNT(*) FROM user_tables WHERE table_name = 'DOCUMENTOS'
     """)
-    
+   
     documento_existe = cursor.fetchone()[0]
-
+ 
     cursor.execute("""
     SELECT COUNT(*) FROM user_tables WHERE table_name = 'LOGINS_PACIENTES'
     """)
-
+ 
     login_paciente_existe = cursor.fetchone()[0]
-
+ 
     cursor.execute("""
     SELECT COUNT(*) FROM user_tables WHERE table_name = 'ENDERECOS'
     """)
-
+ 
     endereco_existe = cursor.fetchone()[0]
-
+ 
     cursor.execute("""
     SELECT COUNT(*) FROM user_tables WHERE table_name = 'CONSULTAS'
     """)
-
+ 
     consulta_existe = cursor.fetchone()[0]
-    
+   
     try:
         if paciente_existe == 0:
             sql = """
@@ -69,10 +71,10 @@ def criar_tabelas(conn):
                 """
             cursor.execute(sql)
             print('Tabela Paciente foi criada com sucesso!')
-            
+           
         if paciente_existe == 1:
             print('Tabela Paciente já foi criada!')
-
+ 
         if documento_existe == 0:
             sql = """
                 CREATE TABLE documentos (
@@ -90,10 +92,10 @@ def criar_tabelas(conn):
                 """
             cursor.execute(sql)
             print(f'Tabela Documento foi criada com sucesso!')
-
+ 
         if documento_existe == 1:
             print('Tabela Documento já foi criada!')
-
+ 
         if login_paciente_existe == 0:
             sql = """
                 CREATE TABLE logins_pacientes (
@@ -109,10 +111,10 @@ def criar_tabelas(conn):
                 """
             cursor.execute(sql)
             print(f'Tabela LoginPaciente foi criada com sucesso!')
-
+ 
         if login_paciente_existe == 1:
             print('Tabela LoginPaciente já foi criada!')
-
+ 
         if endereco_existe == 0:
             sql = """
                 CREATE TABLE enderecos (
@@ -132,10 +134,10 @@ def criar_tabelas(conn):
                 """
             cursor.execute(sql)
             print(f'Tabela Endereco foi criada com sucesso!')
-
+ 
         if endereco_existe == 1:
             print('Tabela Endereco já foi criada!')
-        
+       
         if consulta_existe == 0:
             sql = """
                 CREATE TABLE consultas (
@@ -154,19 +156,51 @@ def criar_tabelas(conn):
             print(f'Tabela Consulta foi criada com sucesso!')
         if consulta_existe == 1:
             print('Tabela Consulta já foi criada!')
-
+ 
     except oracledb.Error as e:
-
+ 
         print(f'Erro de conexão: {e}')
-
+ 
+# Exporta aquivo JSON
+def exportar_json(tabela):
+    conn = get_conexao()
+    cursor = conn.cursor()
+    cursor.execute(f"SELECT * FROM {tabela}")
+    colunas = [col[0].lower() for col in cursor.description]
+    dados = [dict(zip(colunas, row)) for row in cursor.fetchall()]
+    with open(f"{tabela}.json", "w", encoding="utf-8") as f:
+        json.dump(dados, f, indent=4, ensure_ascii=False)
+    print(f"Dados da tabela {tabela} exportados com sucesso para {tabela}.json!")
+ 
+ 
+# API
+def consultar_sintomas():
+    sintomas = input("Digite os sintomas, separados por vírgula: ").split(",")
+    sexo = input("Sexo (male/female): ")
+    ano_nasc = int(input("Ano de nascimento: "))
+    body = {
+        "symptoms": [s.strip() for s in sintomas],
+        "gender": sexo,
+        "year_of_birth": ano_nasc
+    }
+    url = "https://api.apimedic.com/symptom-checker"  # Exemplo
+    headers = {"Content-Type": "application/json", "Authorization": "Bearer SUA_CHAVE"}
+    resposta = requests.post(url, json=body, headers=headers)
+    if resposta.status_code == 200:
+        dados = resposta.json()
+        print("Sugestões de condições:", dados)
+    else:
+        print("Erro na consulta:", resposta.status_code, resposta.text)
+ 
+ 
 # Inserir paciente
 def inserir_paciente(nome, idade, nascimento, estado_civil):
     print('*** Inserindo um novo Paciente na tabela Paciente ***')
     conn = get_conexao()
     if not conn:
-
+ 
         return
-    
+   
     try:
         cursor = conn.cursor()
         sql = """
@@ -181,23 +215,23 @@ def inserir_paciente(nome, idade, nascimento, estado_civil):
         })
         conn.commit()
         print(f'Paciente {nome} adicionado com sucesso!')
-
+ 
     except oracledb.Error as e:
         print(f'\nErro ao inserir o paciente: {e}')
         conn.rollback()
-
+ 
     finally:
         if conn:
             conn.close()  
-
+ 
 # Inserir documento
 def inserir_documento(cpf,rg,telefone,id_paciente):
     print('*** Inserindo um novo documento na tabela documentos ***')
     conn = get_conexao()
     if not conn:
-
+ 
         return
-    
+   
     try:
         cursor = conn.cursor()
         sql = """
@@ -212,22 +246,22 @@ def inserir_documento(cpf,rg,telefone,id_paciente):
         })
         conn.commit()
         print(f'Documento adicionado com sucesso!')
-
+ 
     except oracledb.Error as e:
         print(f'\nErro ao inserir o documento: {e}')
         conn.rollback()
-
+ 
     finally:
         if conn:
             conn.close()  
-
+ 
 def inserir_login_paciente(usuario,senha,id_paciente):
     print('*** Inserindo um novo login na tabela login de pacientes ***')
     conn = get_conexao()
     if not conn:
-
+ 
         return
-    
+   
     try:
         cursor = conn.cursor()
         sql = """
@@ -241,22 +275,22 @@ def inserir_login_paciente(usuario,senha,id_paciente):
         })
         conn.commit()
         print(f'Login de paciente adicionado com sucesso!')
-
+ 
     except oracledb.Error as e:
         print(f'\nErro ao inserir o login de paciente: {e}')
         conn.rollback()
-
+ 
     finally:
         if conn:
             conn.close()  
-
+ 
 def inserir_endereco(cep,logradouro,numero,complemento,bairro,cidade,estado,id_paciente):
     print('*** Inserindo um novo endereco na tabela login de enderecos ***')
     conn = get_conexao()
     if not conn:
-
+ 
         return
-    
+   
     try:
         cursor = conn.cursor()
         sql = """
@@ -275,21 +309,21 @@ def inserir_endereco(cep,logradouro,numero,complemento,bairro,cidade,estado,id_p
         })
         conn.commit()
         print(f'Login de paciente adicionado com sucesso!')
-
+ 
     except oracledb.Error as e:
         print(f'\nErro ao inserir o login de paciente: {e}')
         conn.rollback()
-
+ 
     finally:
         if conn:
             conn.close()  
-
-
+ 
+ 
 def inserir_consulta(especialidade,medico,diagnostico,observacao,id_paciente):
     print('*** Inserindo uma nova consulta na tabela login de consultas ***')
     conn = get_conexao()
     if not conn:
-
+ 
         return
     try:
         cursor = conn.cursor()
@@ -306,22 +340,22 @@ def inserir_consulta(especialidade,medico,diagnostico,observacao,id_paciente):
         })
         conn.commit()
         print(f'Consulta adicionado com sucesso!')
-
+ 
     except oracledb.Error as e:
         print(f'\nErro ao inserir a consulta: {e}')
         conn.rollback()
-
+ 
     finally:
         if conn:
             conn.close()
-
-
-
+ 
+ 
+ 
 # Listar tabelas
 def listar_tabela(tabela):
     conn = get_conexao()
     if not conn:
-
+ 
         return
     try:
         cursor = conn.cursor()
@@ -338,7 +372,7 @@ def listar_tabela(tabela):
             for row in rows:
                 print(f'ID: {row[0]}, Nome: {row[1]}, Idade: {row[2]}, Data de nascimento: {row[3]}, Estado civil: {row[4]}')
                 print('----------------------------------')
-        
+       
         elif tabela == 2:
             print('\n*** Lê e exibe todos os documentos ***')
             sql = """
@@ -352,7 +386,7 @@ def listar_tabela(tabela):
             for row in rows:
                 print(f'ID: {row[0]}, CPF: {row[1]}, RG: {row[2]}, Telefone: {row[3]}')
                 print('----------------------------------')
-        
+       
         elif tabela == 3:
             print('\n*** Lê e exibe todos os logins de pacientes ***')
             sql = """
@@ -366,7 +400,7 @@ def listar_tabela(tabela):
             for row in rows:
                 print(f'ID: {row[0]}, Usuario: {row[1]}, Senha: {row[2]}')
                 print('----------------------------------')
-
+ 
         elif tabela == 4:
             print('\n*** Lê e exibe todos os endereco ***')
             sql = """
@@ -380,7 +414,7 @@ def listar_tabela(tabela):
             for row in rows:
                 print(f'ID: {row[0]}, CEP: {row[1]}, Logradouro: {row[2]}, Número: {row[3]}, Complemento: {row[4]}, Bairro: {row[5]}, Cidade: {row[6]}, Estado: {row[7]}')
                 print('----------------------------------')
-
+ 
         elif tabela == 5:
             print('\n*** Lê e exibe todos as consultas ***')
             sql = """
@@ -394,19 +428,19 @@ def listar_tabela(tabela):
             for row in rows:
                 print(f'ID: {row[0]}, Especialidade: {row[1]}, Medico: {row[2]}, Diagnostico: {row[3]}, Observacao: {row[4]}')
                 print('----------------------------------')
-
+ 
     except oracledb.Error as e:
         print(f'\nErro ao ler tabela: {e}')
     finally:
         if conn:
             conn.close()
-
+ 
 # Buscar produtos
 def buscar_por_id(tabela, id):
     conn = get_conexao()
     if not conn:
         return
-
+ 
     try:
         cursor = conn.cursor()
         if tabela == 1:
@@ -415,7 +449,7 @@ def buscar_por_id(tabela, id):
             SELECT * FROM pacientes WHERE id_paciente = :id
             """
             cursor.execute(sql,{"id": id})
-
+ 
             rows = cursor.fetchall()
             if rows == []:
                 print('\nNão exite nenhum paciente com esse ID')
@@ -423,14 +457,14 @@ def buscar_por_id(tabela, id):
                 print(f'\nID: {row[0]}, Nome: {row[1]}, Idade: {row[2]}, Data de nascimento: {row[3]}, Estado civil: {row[4]}')
                 print('----------------------------------')
             conn.commit()
-
+ 
         elif tabela == 2:
             print(f'\n*** Buscando o documento com ID {id} ***')
             sql = """
             SELECT * FROM documentos WHERE id_documento = :id
             """
             cursor.execute(sql,{"id": id})
-
+ 
             rows = cursor.fetchall()
             if rows == []:
                 print('\nNão exite nenhum documento com esse ID')
@@ -438,14 +472,14 @@ def buscar_por_id(tabela, id):
                 print(f'ID: {row[0]}, CPF: {row[1]}, RG: {row[2]}, Telefone: {row[3]}')
                 print('----------------------------------')
             conn.commit()
-        
+       
         elif tabela == 3:
             print(f'\n*** Buscando o login paciente com ID {id} ***')
             sql = """
             SELECT * FROM logins_pacientes WHERE id_login = :id
             """
             cursor.execute(sql,{"id": id})
-
+ 
             rows = cursor.fetchall()
             if rows == []:
                 print('\nNão exite nenhum login de paciente com esse ID')
@@ -453,14 +487,14 @@ def buscar_por_id(tabela, id):
                 print(f'ID: {row[0]}, Usuario: {row[1]}, Senha: {row[2]}')
                 print('----------------------------------')
             conn.commit()
-
+ 
         elif tabela == 4:
             print(f'\n*** Buscando o endereco com ID {id} ***')
             sql = """
             SELECT * FROM enderecos WHERE id_endereco = :id
             """
             cursor.execute(sql,{"id": id})
-
+ 
             rows = cursor.fetchall()
             if rows == []:
                 print('\nNão exite nenhum endereco com esse ID')
@@ -468,14 +502,14 @@ def buscar_por_id(tabela, id):
                 print(f'ID: {row[0]}, CEP: {row[1]}, Logradouro: {row[2]}, Número: {row[3]}, Complemento: {row[4]}, Bairro: {row[5]}, Cidade: {row[6]}, Estado: {row[7]}')
                 print('----------------------------------')
             conn.commit()
-
+ 
         elif tabela == 5:
             print(f'\n*** Buscando o consulta com ID {id} ***')
             sql = """
             SELECT * FROM consultas WHERE id_consulta = :id
             """
             cursor.execute(sql,{"id": id})
-
+ 
             rows = cursor.fetchall()
             if rows == []:
                 print('\nNão exite nenhuma consulta com esse ID')
@@ -483,292 +517,292 @@ def buscar_por_id(tabela, id):
                 print(f'ID: {row[0]}, Especialidade: {row[1]}, Medico: {row[2]}, Diagnostico: {row[3]}, Observacao: {row[4]}')
                 print('----------------------------------')
             conn.commit()
-        
-        
+       
+       
     except oracledb.Error as e:
         print(f'\nErro ao procurar tabela: {e}')
-
+ 
     finally:
         if conn:
             conn.close()
-
+ 
 # Atualiza
 def atualizar_paciente(id, novo_nome, nova_idade , novo_nascimento, novo_estado_civil):
     print(f'*** Atualizando paciente com base no ID ***')
-
+ 
     conn = get_conexao()
     if not conn:
         return
-
+ 
     try:
         cursor = conn.cursor()
-
+ 
         sql = "UPDATE pacientes SET nome = :novo_nome, idade = :nova_idade, nascimento = :novo_nascimento, estado_civil = :novo_estado_civil WHERE id_paciente = :id"
-        
+       
         cursor.execute(sql, {'id' : id, 'novo_nome' : novo_nome, 'nova_idade' : nova_idade, 'novo_nascimento' : novo_nascimento, 'novo_estado_civil' : novo_estado_civil})
         conn.commit()
-
+ 
         if cursor.rowcount > 0:
             print(f'O paciente com ID {id} foi atualizada')
-
+ 
         else:
             print(f'Nenhum paciente com ID {id} foi encontrado')
-
+ 
     except oracledb.Error as e:
         print(f'\nErro ao atualizar tabela: {e}')
         conn.rollback()
-
+ 
     finally:
         if conn:
             conn.close()
-
+ 
 def atualizar_documento(id, novo_cpf, novo_rg , novo_telefone):
     print(f'*** Atualizando documento com base no ID ***')
-
+ 
     conn = get_conexao()
     if not conn:
         return
-
+ 
     try:
         cursor = conn.cursor()
-
+ 
         sql = "UPDATE documentos SET cpf = :novo_cpf, rg = :novo_rg, telefone = :novo_telefone WHERE id_documento = :id"
-        
+       
         cursor.execute(sql, {'id' : id, 'novo_cpf' : novo_cpf, 'novo_rg' : novo_rg, 'novo_telefone' : novo_telefone})
         conn.commit()
-
+ 
         if cursor.rowcount > 0:
             print(f'O documento com ID {id} foi atualizada')
-
+ 
         else:
             print(f'Nenhum documento com ID {id} foi encontrado')
-
+ 
     except oracledb.Error as e:
         print(f'\nErro ao atualizar tabela: {e}')
         conn.rollback()
-
+ 
     finally:
         if conn:
             conn.close()
-
+ 
 def atualizar_login_paciente(id, novo_usuario, nova_senha):
     print(f'*** Atualizando login de paciente com base no ID ***')
-
+ 
     conn = get_conexao()
     if not conn:
         return
-
+ 
     try:
         cursor = conn.cursor()
-
+ 
         sql = "UPDATE logins_pacientes SET usuario = :novo_usuario, senha = :nova_senha WHERE id_login = :id"
-        
+       
         cursor.execute(sql, {'id' : id, 'novo_usuario' : novo_usuario, 'nova_senha' : nova_senha})
         conn.commit()
-
+ 
         if cursor.rowcount > 0:
             print(f'O login de paciente com ID {id} foi atualizada')
-
+ 
         else:
             print(f'Nenhum login de paciente com ID {id} foi encontrado')
-
+ 
     except oracledb.Error as e:
         print(f'\nErro ao atualizar tabela: {e}')
         conn.rollback()
-
+ 
     finally:
         if conn:
             conn.close()
-
-
+ 
+ 
 def atualizar_endereco(id, novo_cep, novo_logradouro, novo_numero, novo_complemento, novo_bairro, nova_cidade, novo_estado):
     print(f'*** Atualizando endereco com base no ID ***')
-
+ 
     conn = get_conexao()
     if not conn:
         return
-
+ 
     try:
         cursor = conn.cursor()
-
+ 
         sql = "UPDATE enderecos SET cep = :novo_cep, logradouro = :novo_logradouro, numero = :novo_numero, complemento = :novo_complemento, bairro = :novo_bairro, cidade = :nova_cidade, estado = :novo_estado WHERE id_endereco = :id"
-        
+       
         cursor.execute(sql, {'id' : id, 'novo_cep' : novo_cep, 'novo_logradouro' : novo_logradouro, 'novo_numero' : novo_numero, 'novo_complemento' : novo_complemento, 'novo_bairro' : novo_bairro, 'nova_cidade' : nova_cidade, 'novo_estado' : novo_estado})
         conn.commit()
-
+ 
         if cursor.rowcount > 0:
             print(f'O endereco com ID {id} foi atualizada')
-
+ 
         else:
             print(f'Nenhum endereco com ID {id} foi encontrado')
-
+ 
     except oracledb.Error as e:
         print(f'\nErro ao atualizar tabela: {e}')
         conn.rollback()
-
+ 
     finally:
         if conn:
             conn.close()
-
+ 
 def atualizar_consulta(id, nova_especialidade, novo_medico , novo_diagnostico, nova_observacao):
     print(f'*** Atualizando consulta com base no ID ***')
-
+ 
     conn = get_conexao()
     if not conn:
         return
-
+ 
     try:
         cursor = conn.cursor()
-
+ 
         sql = "UPDATE consultas SET especialidade = :nova_especialidade, medico = :novo_medico, diagnostico = :novo_diagnostico, observacao = :nova_observacao WHERE id_consulta = :id"
-        
+       
         cursor.execute(sql, {'id' : id, 'nova_especialidade' : nova_especialidade, 'novo_medico' : novo_medico, 'novo_diagnostico' : novo_diagnostico, 'nova_observacao' : nova_observacao})
         conn.commit()
-
+ 
         if cursor.rowcount > 0:
             print(f'A consulta com ID {id} foi atualizada')
-
+ 
         else:
             print(f'Nenhum consulta com ID {id} foi encontrado')
-
+ 
     except oracledb.Error as e:
         print(f'\nErro ao atualizar tabela: {e}')
         conn.rollback()
-
+ 
     finally:
         if conn:
             conn.close()
-
-
+ 
+ 
 def deletar(tabela, id):
     conn = get_conexao()
     if not conn:
         return
-
+ 
     try:
         cursor = conn.cursor()
         if tabela == 1:
             cursor.execute("SELECT COUNT(*) FROM documentos WHERE id_paciente = :id", {'id': id})
             qtd_docs = cursor.fetchone()[0]
-
+ 
             if qtd_docs > 0:
                 print(f"Paciente {id} possui {qtd_docs} documentos. Excluindo documentos...")
                 cursor.execute("DELETE FROM documentos WHERE id_paciente = :id", {'id': id})
-
-        
+ 
+       
             cursor.execute("SELECT COUNT(*) FROM logins_pacientes WHERE id_paciente = :id", {'id': id})
             qtd_logins = cursor.fetchone()[0]
-
+ 
             if qtd_logins > 0:
                 print(f"Paciente {id} possui {qtd_logins} logins. Excluindo logins...")
                 cursor.execute("DELETE FROM logins_pacientes WHERE id_paciente = :id", {'id': id})
-
-            
+ 
+           
             cursor.execute("SELECT COUNT(*) FROM enderecos WHERE id_paciente = :id", {'id': id})
             qtd_enderecos = cursor.fetchone()[0]
-
+ 
             if qtd_enderecos > 0:
                 print(f"Paciente {id} possui {qtd_enderecos} endereços. Excluindo endereços...")
                 cursor.execute("DELETE FROM enderecos WHERE id_paciente = :id", {'id': id})
-
-            
+ 
+           
             cursor.execute("SELECT COUNT(*) FROM consultas WHERE id_paciente = :id", {'id': id})
             qtd_consultas = cursor.fetchone()[0]
-
+ 
             if qtd_consultas > 0:
                 print(f"Paciente {id} possui {qtd_consultas} consultas. Excluindo consultas...")
                 cursor.execute("DELETE FROM consultas WHERE id_paciente = :id", {'id': id})
-
-
+ 
+ 
             print(f"\n*** Excluindo o paciente com ID {id} ***")
             cursor.execute("DELETE FROM pacientes WHERE id_paciente = :id", {'id': id})
-
+ 
             if cursor.rowcount > 0:
                 print(f"Paciente com ID {id} foi excluído!")
             else:
                 print(f"Nenhum paciente com ID {id} foi encontrado.")
-
+ 
             conn.commit()
-
+ 
         elif tabela == 2:
             print(f'\n*** Excluindo o documento com ID {id} ***')
             sql = "DELETE FROM documentos WHERE id_documento = :id"
             cursor.execute(sql, {'id' : id})
             conn.commit()
-
+ 
             if cursor.rowcount > 0:
                 print(f'\nDocumento com ID {id} foi excluido!')
-
+ 
             else:
                 print(f'\nNenhum documento com ID {id} foi encontrado')
-        
+       
         elif tabela == 3:
             print(f'\n*** Excluindo o login pacinete com ID {id} ***')
             sql = "DELETE FROM logins_pacientes WHERE id_login = :id"
             cursor.execute(sql, {'id' : id})
             conn.commit()
-
+ 
             if cursor.rowcount > 0:
                 print(f'\nLogin de paciente com ID {id} foi excluido!')
-
+ 
             else:
                 print(f'\nNenhum login de paciente com ID {id} foi encontrado')
-        
+       
         elif tabela == 4:
             print(f'\n*** Excluindo o endereco com ID {id} ***')
             sql = "DELETE FROM enderecos WHERE id_endereco = :id"
             cursor.execute(sql, {'id' : id})
             conn.commit()
-
+ 
             if cursor.rowcount > 0:
                 print(f'\nEndereco com ID {id} foi excluido!')
-
+ 
             else:
                 print(f'\nNenhum Endereco com ID {id} foi encontrado')
-
+ 
         elif tabela == 5:
             print(f'\n*** Excluindo o consulta com ID {id} ***')
             sql = "DELETE FROM consultas WHERE id_consulta = :id"
             cursor.execute(sql, {'id' : id})
             conn.commit()
-
+ 
             if cursor.rowcount > 0:
                 print(f'\nConsulta com ID {id} foi excluido!')
-
+ 
             else:
                 print(f'\nNenhum consulta com ID {id} foi encontrado')
-
+ 
     except oracledb.Error as e:
         print(f'\nErro ao excluir tabela: {e}')
-
+ 
         conn.rollback()
-
+ 
     finally:
         if conn:
-
+ 
             conn.close()
-
-
+ 
+ 
 def testa_paciente():
     conn = get_conexao()
-
+ 
     if not conn:
         return
-    
+   
     cursor = conn.cursor()
-
+ 
     sql = """
         SELECT * FROM pacientes ORDER BY id_paciente
         """
     cursor.execute(sql)
-
+ 
     rows = cursor.fetchall()
     if rows == []:
         print('\nPrimero adicione um paciente')
         nome, idade, nascimento, estado_civil = pergunta_paciente()
         inserir_paciente(nome, idade, nascimento, estado_civil)
-
-
+ 
+ 
 def pergunta_id():
     while True:
         try:
@@ -782,12 +816,12 @@ def pergunta_id():
         except ValueError:
             print('Valor invalido. Tente novamente')
     return id
-        
-
+       
+ 
 def pergunta_paciente():
     while True:
         nome = input("\nDigite o nome do paciente: ")
-        
+       
         if nome == "":
             print('Nome não inserido. Tente novamente!')
         elif len(nome) <= 50:
@@ -809,7 +843,7 @@ def pergunta_paciente():
             print('Valor invalido. Tente novamente')
     while True:
         nascimento = input('\nDigite a data de nascimento do paciente: ')
-        
+       
         if nascimento == "":
             print('Data de nascimento não inserido. Tente novamente')
         elif len(nascimento) <= 10:
@@ -818,209 +852,209 @@ def pergunta_paciente():
             print("A data de nascimento deve ter no máximo 10 caracteres. Tente novamente.")
     while True:
         estado_civil = input('\nDigite o estado civil do paciente: ')
-        
+       
         if estado_civil == "":
             print('Estado civil não inserido. Tente novamente')
         elif len(estado_civil) <= 30:
             break
         else:
             print("O estado civil deve ter no máximo 30 caracteres. Tente novamente.")
-
+ 
     return nome, idade, nascimento, estado_civil
-
-
+ 
+ 
 def pergunta_documento():
     while True:
         cpf = input("\nDigite o CPF do paciente: ")
-        
+       
         if cpf == "":
             print('CPF não inserido. Tente novamente!')
         elif len(cpf) == 11:
             break
         else:
             print("O cpf deve ter 11 caracteres. Tente novamente!")
-
+ 
     while True:
         rg = input("\nDigite o RG do paciente: ")
-        
+       
         if rg == "":
             print('RG não inserido. Tente novamente!')
         elif len(rg) <= 20:
             break
         else:
             print("O RG deve ter no máximo 20 caracteres. Tente novamente!")
-
+ 
     while True:
         telefone = input("\nDigite o telefone do paciente: ")
-        
+       
         if telefone == "":
             print('telefone não inserido. Tente novamente!')
         elif len(telefone) <= 20:
             break
         else:
             print("O telefone deve ter no máximo 20 caracteres. Tente novamente!")
-
+ 
     return cpf, rg, telefone
-
+ 
 def pergunta_login_paciente():
     while True:
         usuario = input("\nDigite o nome de usuario do paciente: ")
-        
+       
         if usuario == "":
             print('Usuario não inserido. Tente novamente!')
         elif len(usuario) <= 50:
             break
         else:
             print("O nome de usuario deve ter no máximo 50 caracteres. Tente novamente!")
-
+ 
     while True:
         senha = input("\nDigite a senha do paciente: ")
-        
+       
         if senha == "":
             print('Senha não inserido. Tente novamente!')
         elif len(senha) <= 255:
             break
         else:
             print("O senha deve ter no máximo 255 caracteres. Tente novamente!")
-    
+   
     return usuario, senha
-
-
+ 
+ 
 def pergunta_endereco():
     while True:
         cep = input("\nDigite o CEP do paciente: ")
-        
+       
         if cep == "":
             print('CEP não inserido. Tente novamente!')
         elif len(cep) <= 8:
             break
         else:
             print("O CEP deve ter no máximo 8 caracteres. Tente novamente!")
-
+ 
     while True:
         logradouro = input("\nDigite o nome do logradouro do paciente: ")
-        
+       
         if logradouro == "":
             print('lLgradouro não inserido. Tente novamente!')
         elif len(logradouro) <= 150:
             break
         else:
             print("O logradouro deve ter no máximo 150 caracteres. Tente novamente!")
-
+ 
     while True:
         numero = input("\nDigite o número do paciente: ")
-        
+       
         if numero == "":
             print('Número não inserido. Tente novamente!')
         elif len(numero) <= 10:
             break
         else:
             print("O numero deve ter no máximo 10 caracteres. Tente novamente!")    
-
+ 
     while True:
         complemento = input("\nDigite o complemento do paciente: ")
-        
+       
         if complemento == "":
             print('Complemento não inserido. Tente novamente!')
         elif len(complemento) <= 50:
             break
         else:
             print("A observacao deve ter no máximo 50 caracteres. Tente novamente!")
-
+ 
     while True:
         bairro = input("\nDigite o nome do bairro do paciente: ")
-        
+       
         if bairro == "":
             print('Bairro não inserido. Tente novamente!')
         elif len(bairro) <= 100:
             break
         else:
             print("O bairro deve ter no máximo 100 caracteres. Tente novamente!")
-
+ 
     while True:
         cidade = input("\nDigite a cidade do paciente: ")
-        
+       
         if cidade == "":
             print('Cidade não inserido. Tente novamente!')
         elif len(cidade) <= 100:
             break
         else:
             print("A cidade deve ter no máximo 100 caracteres. Tente novamente!")    
-
+ 
     while True:
         estado = input("\nDigite o estado do paciente: ")
-        
+       
         if estado == "":
             print('Estado não inserido. Tente novamente!')
         elif len(estado) <= 2:
             break
         else:
             print("O estado deve ter no máximo 2 caracteres. Tente novamente!")
-
+ 
     return cep, logradouro, numero, complemento, bairro ,cidade ,estado
-
-
+ 
+ 
 def pergunta_consulta():
     while True:
         especialidade = input("\nDigite o nome da especialidade do paciente: ")
-        
+       
         if especialidade == "":
             print('Especialidade não inserido. Tente novamente!')
         elif len(especialidade) <= 100:
             break
         else:
             print("A especialidade deve ter no máximo 100 caracteres. Tente novamente!")
-
+ 
     while True:
         medico = input("\nDigite o nome do medico do paciente: ")
-        
+       
         if medico == "":
             print('Medico não inserido. Tente novamente!')
         elif len(medico) <= 50:
             break
         else:
             print("O nome do medico deve ter no máximo 50 caracteres. Tente novamente!")
-
+ 
     while True:
         diagnostico = input("\nDigite o diagnostico do paciente: ")
-        
+       
         if diagnostico == "":
             print('Diagnostico não inserido. Tente novamente!')
         elif len(diagnostico) <= 255:
             break
         else:
             print("O diagnostico deve ter no máximo 255 caracteres. Tente novamente!")    
-
+ 
     while True:
         observacao = input("\nDigite a observacao do paciente: ")
-        
+       
         if observacao == "":
             print('Observacao não inserido. Tente novamente!')
         elif len(observacao) <= 255:
             break
         else:
             print("A observacao deve ter no máximo 255 caracteres. Tente novamente!")
-
+ 
     return especialidade, medico, diagnostico, observacao
-
+ 
 def chave_estrangeira():
     conn = get_conexao()
     if not conn:
         return
-    
+   
     cursor = conn.cursor()
-
+ 
     sql = """
         SELECT * FROM pacientes ORDER BY id_paciente
         """
     cursor.execute(sql)
     print("\n --- Lista de pacientes ---")
     rows = cursor.fetchall()
-    
+   
     for row in rows:
         print(f'ID: {row[0]}, Nome: {row[1]}, Idade: {row[2]}, Data de nascimento: {row[3]}, Estado civil: {row[4]}')
         print('----------------------------------')
-
+ 
     while True:
         while True:
             try:
@@ -1028,7 +1062,7 @@ def chave_estrangeira():
                 break
             except ValueError:
                 print('Valor não invalido. Tente novamente')
-        
+       
         while True:
             sql = """
                 SELECT * FROM pacientes WHERE id_paciente = :id_paciente
@@ -1044,33 +1078,34 @@ def chave_estrangeira():
             break
     if conn:
         conn.close()
-
+ 
     return id_paciente
-
-    
+ 
+   
 def menu():
-    conn = get_conexao() 
+    conn = get_conexao()
     criar_tabelas(conn)
     conn.close()
     while True:
-        print('\n*--- Menu CRUD - de tabelas ---*')
+        print('\n*==== SISTEMA DE PACIENTES ====*')
         print('\n1 - Paciente')
         print('2 - Documentos do paciente')
         print('3 - Login do paciente')
         print('4 - Endereco do paciente')
         print('5 - Consulta do paciente')
-        print('6 - Sair')
-
+        print('6 - API')
+        print('7 - Sair')
+ 
         while True:
             try:
                 tabela = int(input('\nEscolha uma opção: '))
-                if 1 <= tabela <= 6:
+                if 1 <= tabela <= 8:
                     break
                 else:
                     print('Número digitado não está nas opções. Tente novamente')
             except ValueError:
                 print('Valor digitado é invalido. Tente novamente!')
-
+ 
         if tabela == 1:
             while True:
                 print('\n*--- Paciente ---*')
@@ -1079,44 +1114,49 @@ def menu():
                 print('3 - Buscar paciente')
                 print('4 - Atualizar paciente')
                 print('5 - Deletar paciente')
-                print('6 - Sair')
-
+                print('6 - Exportar dados Json')
+                print('7- Voltar')
+ 
                 while True:
                     try:
                         opcao = int(input('\nEscolha a opção: '))
                         break
                     except ValueError:
                         print('Valor invalido. tente novamente')
-
+ 
                 if opcao == 1:
                     nome, idade, nascimento, estado_civil = pergunta_paciente()
                     inserir_paciente(nome, idade, nascimento, estado_civil)
-
+ 
                 elif opcao == 2:
                     listar_tabela(tabela)
-                
+               
                 elif opcao == 3:
                     id = pergunta_id()
                     buscar_por_id(tabela,id)
-
+ 
                 elif opcao == 4:
                     id = pergunta_id()
                     nome, idade, nascimento, estado_civil = pergunta_paciente()
-
+ 
                     atualizar_paciente(id, nome, idade, nascimento, estado_civil)
-                
+               
                 elif opcao == 5:
                     id = pergunta_id()
                     deletar(tabela, id)
 
                 elif opcao == 6:
+                    tabela_nome = 'pacientes'
+                    exportar_json(tabela_nome)
+
+                elif opcao == 7:
                     print('Saindo do menu Paciente...')
                     break
-                
+               
                 else:
                     print('Opção inválida!')
-        
-
+       
+ 
         elif tabela == 2:
             testa_paciente()
             while True:
@@ -1126,22 +1166,23 @@ def menu():
                 print('3 - Buscar documento')
                 print('4 - Atualizar documento')
                 print('5 - Deletar documento')
-                print('6 - Sair')
-
+                print('6 - Exportar dados Json')
+                print('7- Voltar')
+ 
                 while True:
                     try:
                         opcao = int(input('\nEscolha a opção: '))
                         break
                     except ValueError:
                         print('Valor invalido. tente novamente')
-
+ 
                 if opcao == 1:
                     cpf, rg, telefone = pergunta_documento()
                     id_paciente = chave_estrangeira()
                     inserir_documento(cpf,rg,telefone,id_paciente)
                 elif opcao == 2:
                     listar_tabela(tabela)
-                
+               
                 elif opcao == 3:
                     id = pergunta_id()
                     buscar_por_id(tabela,id)
@@ -1149,17 +1190,21 @@ def menu():
                     id = pergunta_id()
                     cpf, rg, telefone = pergunta_documento()
                     atualizar_documento(id, cpf, rg, telefone)
-                
+               
                 elif opcao == 5:
                     id = pergunta_id()
                     deletar(tabela, id)
                 elif opcao == 6:
-                    print('Saindo do menu documento...')
+                    tabela_nome = 'documentos'
+                    exportar_json(tabela_nome)
+
+                elif opcao == 7:
+                    print('Saindo do menu Paciente...')
                     break
-                
+               
                 else:
                     print('Opção inválida!')
-
+ 
         elif tabela == 3:
             testa_paciente()
             while True:
@@ -1169,22 +1214,23 @@ def menu():
                 print('3 - Buscar login de paciente')
                 print('4 - Atualizar login de paciente')
                 print('5 - Deletar login de paciente')
-                print('6 - Sair')
-
+                print('6 - Exportar dados Json')
+                print('7- Voltar')
+ 
                 while True:
                     try:
                         opcao = int(input('\nEscolha a opção: '))
                         break
                     except ValueError:
                         print('Valor invalido. tente novamente')
-
+ 
                 if opcao == 1:
                     usuario, senha = pergunta_login_paciente()
                     id_paciente = chave_estrangeira()
                     inserir_login_paciente(usuario,senha,id_paciente)
                 elif opcao == 2:
                     listar_tabela(tabela)
-                
+               
                 elif opcao == 3:
                     id = pergunta_id()
                     buscar_por_id(tabela,id)
@@ -1192,17 +1238,21 @@ def menu():
                     id = pergunta_id()
                     novo_usuario, nova_senha = pergunta_login_paciente()
                     atualizar_login_paciente(id, novo_usuario, nova_senha)
-                
+               
                 elif opcao == 5:
                     id = pergunta_id()
                     deletar(tabela, id)
                 elif opcao == 6:
-                    print('Saindo do menu login de paciente...')
+                    tabela_nome = 'logins_pacientes'
+                    exportar_json(tabela_nome)
+
+                elif opcao == 7:
+                    print('Saindo do menu Paciente...')
                     break
-                
+               
                 else:
                     print('Opção inválida!')
-        
+       
         elif tabela == 4:
             testa_paciente()
             while True:
@@ -1212,22 +1262,23 @@ def menu():
                 print('3 - Buscar endereco')
                 print('4 - Atualizar endereco')
                 print('5 - Deletar endereco')
-                print('6 - Sair')
-
+                print('6 - Exportar dados Json')
+                print('7- Voltar')
+ 
                 while True:
                     try:
                         opcao = int(input('\nEscolha a opção: '))
                         break
                     except ValueError:
                         print('Valor invalido. tente novamente')
-
+ 
                 if opcao == 1:
                     cep, logradouro, numero, complemento, bairro ,cidade ,estado = pergunta_endereco()
                     id_paciente = chave_estrangeira()
                     inserir_endereco(cep, logradouro, numero, complemento, bairro ,cidade ,estado,id_paciente)
                 elif opcao == 2:
                     listar_tabela(tabela)
-                
+               
                 elif opcao == 3:
                     id = pergunta_id()
                     buscar_por_id(tabela,id)
@@ -1235,17 +1286,21 @@ def menu():
                     id = pergunta_id()
                     cep, logradouro, numero, complemento, bairro ,cidade ,estado = pergunta_documento()
                     atualizar_documento(id, cep, logradouro, numero, complemento, bairro ,cidade ,estado)
-                
+               
                 elif opcao == 5:
                     id = pergunta_id()
                     deletar(tabela, id)
                 elif opcao == 6:
-                    print('Saindo do menu endereco...')
+                    tabela_nome = 'enderecos'
+                    exportar_json(tabela_nome)
+
+                elif opcao == 7:
+                    print('Saindo do menu Paciente...')
                     break
-                
+               
                 else:
                     print('Opção inválida!')
-
+ 
         elif tabela == 5:
             testa_paciente()
             while True:
@@ -1255,22 +1310,23 @@ def menu():
                 print('3 - Buscar consulta')
                 print('4 - Atualizar consulta')
                 print('5 - Deletar consulta')
-                print('6 - Sair')
-
+                print('6 - Exportar dados Json')
+                print('7- Voltar')
+ 
                 while True:
                     try:
                         opcao = int(input('\nEscolha a opção: '))
                         break
                     except ValueError:
                         print('Valor invalido. tente novamente')
-
+ 
                 if opcao == 1:
                     especialidade, medico, diagnostico, observacao = pergunta_consulta()
                     id_paciente = chave_estrangeira()
                     inserir_consulta(especialidade, medico, diagnostico, observacao,id_paciente)
                 elif opcao == 2:
                     listar_tabela(tabela)
-                
+               
                 elif opcao == 3:
                     id = pergunta_id()
                     buscar_por_id(tabela,id)
@@ -1278,20 +1334,28 @@ def menu():
                     id = pergunta_id()
                     especialidade, medico, diagnostico, observacao = pergunta_consulta()
                     atualizar_consulta(especialidade, medico, diagnostico, observacao,id_paciente)
-                
+               
                 elif opcao == 5:
                     id = pergunta_id()
                     deletar(tabela, id)
                 elif opcao == 6:
-                    print('Saindo do menu consulta...')
+                    tabela_nome = 'consultas'
+                    exportar_json(tabela_nome)
+
+                elif opcao == 7:
+                    print('Saindo do menu Paciente...')
                     break
-                
+               
                 else:
                     print('Opção inválida!')
-
+ 
         elif tabela == 6:
+            exportar_json(tabela)
+ 
+   
+        elif tabela == 7:
             break
-
-
-
+ 
+ 
+ 
 menu()
