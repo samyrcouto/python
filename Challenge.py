@@ -7,8 +7,8 @@ def get_conexao():
    
     try:
         conn = oracledb.connect(
-            user = "RM565194",
-            password = "220507",
+            user = "Seu usuario",
+            password = "Sua senha",
             host = "oracle.fiap.com.br",
             port = "1521",
             service_name = "orcl"
@@ -171,27 +171,45 @@ def exportar_json(tabela):
     with open(f"{tabela}.json", "w", encoding="utf-8") as f:
         json.dump(dados, f, indent=4, ensure_ascii=False)
     print(f"Dados da tabela {tabela} exportados com sucesso para {tabela}.json!")
- 
- 
+
 # API
-def consultar_sintomas():
-    sintomas = input("Digite os sintomas, separados por vírgula: ").split(",")
-    sexo = input("Sexo (male/female): ")
-    ano_nasc = int(input("Ano de nascimento: "))
-    body = {
-        "symptoms": [s.strip() for s in sintomas],
-        "gender": sexo,
-        "year_of_birth": ano_nasc
-    }
-    url = "https://api.apimedic.com/symptom-checker"  # Exemplo
-    headers = {"Content-Type": "application/json", "Authorization": "Bearer SUA_CHAVE"}
-    resposta = requests.post(url, json=body, headers=headers)
-    if resposta.status_code == 200:
-        dados = resposta.json()
-        print("Sugestões de condições:", dados)
-    else:
-        print("Erro na consulta:", resposta.status_code, resposta.text)
- 
+def buscar_cep(response):
+    try:
+        if response.status_code == 200:
+        
+            data = response.json()
+
+        
+            if "erro" not in data:
+                dados = response.json()
+                print('\n*--- CEP encontrado! ---*\n')
+                print("CEP:", data["cep"])
+                print("Logradouro:", data["logradouro"])
+                print("Complemento:", data["complemento"])
+                print("Bairro:", data["bairro"])
+                print("Estado:", data["estado"])
+                print("Região:", data["regiao"])
+            
+                return
+            
+            else:
+                print("Erro ao consultar o ViaCEP.")
+                return None
+    except Exception as e:
+        print(f"Erro na requisição do ViaCEP: {e}")
+        return None
+
+# Prrgunta CEP
+def pergunta_endereco():
+    while True:
+        try:
+            cep = input("\nDigite o CEP do paciente: ")
+            if cep != 8:
+                print("CEP inválido. Digite exatamente 8 números.")
+            elif cep == 8:
+                break
+        except ValueError:
+            print("CEP inválido. Digite exatamente 8 números.")
  
 # Inserir paciente
 def inserir_paciente(nome, idade, nascimento, estado_civil):
@@ -1350,12 +1368,11 @@ def menu():
                     print('Opção inválida!')
  
         elif tabela == 6:
-            exportar_json(tabela)
- 
+            cep = pergunta_endereco()
+            url = f"https://viacep.com.br/ws/{cep}/json/"
+            response = requests.get(url)
+            buscar_cep(response)
    
         elif tabela == 7:
             break
- 
- 
- 
 menu()
